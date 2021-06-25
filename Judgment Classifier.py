@@ -15,10 +15,12 @@ manual_filename = ['verdict_' + str('{:03}'.format(x)) + '.txt' for x in sorted(
 
 # 建立自動判決結果dataframe
 dict2df = {'verdict':manual_filename,
-          '判決書案號':list(manual_label_df['判決書案號']),'駁回':None,
+          '判決書案號':list(manual_label_df['判決書案號']),
+           '駁回_Auto':None,'駁回_Manual':manual_label_df['駁回'],
            '原告引用法條_Auto':None,'法官判決法條_Auto':None,
-           '原告引用法條_Manual':manual_label_df['原告引用法條'],'法官判決法條_Manual':manual_label_df['法官判決法條'],
-           '原告引用法條_Diff':None,'法官判決法條_Diff':None
+           '原告引用法條_Manual':manual_label_df['原告引用法條'],
+           '法官判決法條_Manual':manual_label_df['法官判決法條'],
+           '駁回_Diff':None,'原告引用法條_Diff':None,'法官判決法條_Diff':None
           }
 label_df = pd.DataFrame.from_dict(dict2df)
 label_df = label_df.set_index(['verdict'])
@@ -67,9 +69,9 @@ def Classify(filename):
     main_txt = [current_verdict[i] for i, x in enumerate(current_verdict) if main_rex.search(x) != None]
     rex1 = re.compile(r'(應?(連帶)?給付)(周年利率|週年利率|年息|年利率)?(百分之五|百分之5|5％|5%)?')
     if bool(rex1.search(main_txt[0])) == True:
-        label_df.loc[filename,'駁回'] = 0
+        label_df.loc[filename,'駁回_Auto'] = 0
     else:
-        label_df.loc[filename,'駁回'] = 1
+        label_df.loc[filename,'駁回_Auto'] = 1
 
     # 提取著作權法第88條相關條文
     rex88 = re.compile(r'著作權法(第\d+條)?(、)?(第\d+項)?(、)?第(88|八十八)(、\d+-\d)?(、\d+){0,2}?條(第)?(1|一|2|二|3|三)?(項)?(及)?((、)?第(2|二)項)?((、)?第(3|三)項)?((、)?(2|二)項)?((、)?(3|三)項)?')
@@ -91,6 +93,11 @@ def Classify(filename):
     fill_dataframe(court_classify, '法官判決法條_Auto', filename)
     
     # 判斷分類對錯
+    if label_df.loc[filename, '駁回_Auto'] != label_df.loc[filename, '駁回_Manual']:
+        label_df.loc[filename, '駁回_Diff'] = 1
+    else:
+        label_df.loc[filename, '原告引用法條_Diff'] = 0
+    
     if label_df.loc[filename, '原告引用法條_Auto'] != label_df.loc[filename, '原告引用法條_Manual']:
         label_df.loc[filename, '原告引用法條_Diff'] = 1
     else:
@@ -101,13 +108,15 @@ def Classify(filename):
     else:
         label_df.loc[filename, '法官判決法條_Diff'] = 0
 
-# 著作權法第88條判決書分類器
 def Copyright_88_Classifier(filename_lst):
     # 將挑選判決進行分類並填入表格
     for filename in filename_lst:
         Classify(filename)
     
+    
     # 結果分析    
+    dismiss_wrong = label_df.loc[label_df['駁回_Diff'] == 1,:]
+    
     all_wrong = label_df.loc[label_df.loc[:,['原告引用法條_Diff','法官判決法條_Diff']].sum(axis = 1) == 2,:]
     tmp = label_df.loc[label_df['原告引用法條_Diff'] == 1,:]
     plaintiff_wrong = tmp.loc[[ind for ind in list(tmp.index) if ind not in list(all_wrong.index)],:] 
@@ -125,7 +134,6 @@ def Copyright_88_Classifier(filename_lst):
     summary_df.iloc[3,0:2] = [len(all_right), len(all_right)/len(label_df)]
     summary_df.iloc[4,0:2] = summary_df.iloc[0:4,].sum(axis = 0)
     summary_df
-    return label_df, summary_df
+    return label_df, summary_df, dismiss_wrong
 
-label_df, summary_df = Copyright_88_Classifier(manual_filename)
-
+label_df, summary_df, dismiss = Copyright_88_Classifier(manual_filename)
