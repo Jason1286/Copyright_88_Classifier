@@ -96,7 +96,7 @@ def Classify(filename):
     if label_df.loc[filename, '駁回_Auto'] != label_df.loc[filename, '駁回_Manual']:
         label_df.loc[filename, '駁回_Diff'] = 1
     else:
-        label_df.loc[filename, '原告引用法條_Diff'] = 0
+        label_df.loc[filename, '駁回_Diff'] = 0
     
     if label_df.loc[filename, '原告引用法條_Auto'] != label_df.loc[filename, '原告引用法條_Manual']:
         label_df.loc[filename, '原告引用法條_Diff'] = 1
@@ -117,12 +117,17 @@ def Copyright_88_Classifier(filename_lst):
     # 結果分析    
     dismiss_wrong = label_df.loc[label_df['駁回_Diff'] == 1,:]
     
-    all_wrong = label_df.loc[label_df.loc[:,['原告引用法條_Diff','法官判決法條_Diff']].sum(axis = 1) == 2,:]
+    both_wrong = label_df.loc[label_df.loc[:,['原告引用法條_Diff','法官判決法條_Diff']].sum(axis = 1) == 2,:]
     tmp = label_df.loc[label_df['原告引用法條_Diff'] == 1,:]
-    plaintiff_wrong = tmp.loc[[ind for ind in list(tmp.index) if ind not in list(all_wrong.index)],:] 
+    plaintiff_wrong = tmp.loc[[ind for ind in list(tmp.index) if ind not in list(both_wrong.index)],:] 
     tmp = label_df.loc[label_df['法官判決法條_Diff'] == 1,:]
-    court_wrong = tmp.loc[[ind for ind in list(tmp.index) if ind not in list(all_wrong.index)],:] 
-    all_right = label_df.loc[label_df.loc[:,['原告引用法條_Diff','法官判決法條_Diff']].sum(axis = 1) == 0,:]
+    court_wrong = tmp.loc[[ind for ind in list(tmp.index) if ind not in list(both_wrong.index)],:] 
+    both_right = label_df.loc[label_df.loc[:,['原告引用法條_Diff','法官判決法條_Diff']].sum(axis = 1) == 0,:]
+    cases_dct = {'both_wrong':both_wrong, 
+                'plaintiff_wrong':plaintiff_wrong,
+                'court_wrong': court_wrong,
+                'both_right': both_right,
+                'dismiss_wrong': dismiss_wrong}
     summary_dict = {'Case':['僅原告引用法條分錯', '僅法官判決法條分錯','皆分錯','皆分對','總和'],
                   'amount':None,'proportion':None}
     summary_df = pd.DataFrame.from_dict(summary_dict)
@@ -130,10 +135,10 @@ def Copyright_88_Classifier(filename_lst):
 
     summary_df.iloc[0,0:2] = [len(plaintiff_wrong), len(plaintiff_wrong)/len(label_df)]
     summary_df.iloc[1,0:2] = [len(court_wrong), len(court_wrong)/len(label_df)]
-    summary_df.iloc[2,0:2] = [len(all_wrong), len(all_wrong)/len(label_df)]
-    summary_df.iloc[3,0:2] = [len(all_right), len(all_right)/len(label_df)]
+    summary_df.iloc[2,0:2] = [len(both_wrong), len(both_wrong)/len(label_df)]
+    summary_df.iloc[3,0:2] = [len(both_right), len(both_right)/len(label_df)]
     summary_df.iloc[4,0:2] = summary_df.iloc[0:4,].sum(axis = 0)
     summary_df
-    return label_df, summary_df, dismiss_wrong
+    return label_df, summary_df, cases_dct
 
-label_df, summary_df, dismiss = Copyright_88_Classifier(manual_filename)
+label_df, summary_df, cases_dct = Copyright_88_Classifier(manual_filename)
