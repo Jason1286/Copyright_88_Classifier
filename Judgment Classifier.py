@@ -101,6 +101,7 @@ def Classify(filename):
     else:
         label_df.loc[filename, '法官判決法條_Diff'] = 0
 
+# 著作權法第88條判決書分類器
 def Copyright_88_Classifier(filename_lst):
     # 將挑選判決進行分類並填入表格
     for filename in filename_lst:
